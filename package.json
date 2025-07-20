@@ -1,0 +1,19 @@
+{
+    "name": "pensieve",
+    "version": "0.0.1",
+    "description": "Context-aware memory and note organization for Obsidian.",
+    "main": "dist/main.js",
+    "scripts": {
+        "build": "esbuild src/main.jsx --bundle --outfile=dist/main.js --format=cjs --jsx=automatic --external:obsidian && esbuild src/settings.jsx --bundle --outfile=dist/settings.js --format=cjs --jsx=automatic --external:obsidian",
+        "copy": "cpx dist/* \"C:/obsidian/cs-02hero/.obsidian/plugins/pensieve\" && cpx manifest.json \"C:/obsidian/cs-02hero/.obsidian/plugins/pensieve\"",
+        "dev": "npm run build && npm run copy"
+    },
+    "dependencies": {
+        "obsidian": "*"
+    },
+    "devDependencies": {
+        "esbuild": "*",
+        "cpx": "*",
+        "eslint": "*"
+    }
+}
