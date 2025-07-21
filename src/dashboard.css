@@ -1,19 +1,39 @@
 /* Pensieve Dashboard Styles */
 
 .pensieve-dashboard {
-    width: 90vw;
-    max-width: 1200px;
-    height: 80vh;
-    max-height: 800px;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Ensure all text content is selectable by default */
+.pensieve-dashboard * {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+}
+
+/* But exclude buttons and interactive elements */
+.pensieve-dashboard button,
+.pensieve-dashboard input,
+.pensieve-dashboard select,
+.pensieve-dashboard .task-list-item-checkbox {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
 }
 
 .pensieve-dashboard-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px;
+    padding: 15px 20px;
     border-bottom: 1px solid var(--background-modifier-border);
     background: var(--background-primary);
+    flex-shrink: 0;
 }
 
 .pensieve-dashboard-header h2 {
@@ -47,44 +67,55 @@
 }
 
 .pensieve-dashboard-content {
-    padding: 20px;
-    height: calc(100% - 80px);
+    padding: 10px 15px;
+    flex: 1;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    gap: 10px;
 }
 
 /* Controls Section */
 .pensieve-controls {
     display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    margin-bottom: 30px;
-    padding: 20px;
+    flex-wrap: nowrap;
+    align-items: end;
+    gap: 15px;
+    margin-bottom: 15px;
+    padding: 15px;
     background: var(--background-secondary);
     border-radius: 8px;
     border: 1px solid var(--background-modifier-border);
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-shrink: 0;
 }
 
 .pensieve-control-group {
     display: flex;
     flex-direction: column;
     gap: 5px;
-    min-width: 150px;
+    min-width: 120px;
+    flex-shrink: 0;
 }
 
 .pensieve-control-group label {
     font-weight: 600;
     color: var(--text-normal);
-    font-size: 14px;
+    font-size: 12px;
+    margin-bottom: 2px;
 }
 
 .pensieve-control-group input,
 .pensieve-control-group select {
-    padding: 8px 12px;
+    padding: 6px 10px;
     border: 1px solid var(--background-modifier-border);
     border-radius: 4px;
     background: var(--background-primary);
     color: var(--text-normal);
-    font-size: 14px;
+    font-size: 13px;
+    min-width: 100px;
 }
 
 .pensieve-control-group input:focus,
@@ -96,14 +127,16 @@
 
 /* Buttons */
 .pensieve-btn {
-    padding: 10px 20px;
+    padding: 8px 16px;
     border: none;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     transition: all 0.2s ease;
-    margin: 5px;
+    margin: 0;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .pensieve-btn.primary {
@@ -127,6 +160,35 @@
 /* Results Section */
 .pensieve-results {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Project Results Container */
+.pensieve-project-results {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    gap: 10px;
+}
+
+/* Autolog Results Container */
+.pensieve-autolog-results {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    gap: 15px;
+}
+
+/* Ensure project layout uses more vertical space */
+.pensieve-project-results .pensieve-top-row,
+.pensieve-project-results .pensieve-bottom-row {
+    flex: 1;
+    min-height: 0;
 }
 
 .pensieve-placeholder {
@@ -138,11 +200,12 @@
 
 /* Summary Section */
 .pensieve-summary {
-    margin-bottom: 30px;
-    padding: 20px;
+    margin-bottom: 15px;
+    padding: 15px;
     background: var(--background-secondary);
     border-radius: 8px;
     border: 1px solid var(--background-modifier-border);
+    flex-shrink: 0;
 }
 
 .pensieve-summary h3 {
@@ -159,32 +222,185 @@
 /* Three-Panel Layout */
 .pensieve-panels {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 20px;
-    height: 400px;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 15px;
+    flex: 1;
+    min-height: 400px;
 }
 
 .pensieve-panel {
     background: var(--background-secondary);
     border: 1px solid var(--background-modifier-border);
     border-radius: 8px;
-    padding: 20px;
+    padding: 15px;
     overflow-y: auto;
     position: relative;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
 }
 
 .pensieve-panel h3 {
-    margin: 0 0 15px 0;
+    margin: 0 0 10px 0;
     color: var(--text-normal);
     font-size: 16px;
     font-weight: 600;
     border-bottom: 2px solid var(--interactive-accent);
     padding-bottom: 8px;
+    flex-shrink: 0;
 }
 
 .pensieve-content {
     line-height: 1.6;
     color: var(--text-normal);
+    min-height: 50px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    cursor: text;
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 15px;
+}
+
+/* Ensure markdown content is properly styled */
+.pensieve-content .markdown-preview-view {
+    background: transparent;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+}
+
+.pensieve-content .markdown-preview-view * {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+}
+
+/* Target specific markdown elements that Obsidian creates */
+.pensieve-content .markdown-preview-view p,
+.pensieve-content .markdown-preview-view div,
+.pensieve-content .markdown-preview-view span,
+.pensieve-content .markdown-preview-view li,
+.pensieve-content .markdown-preview-view h1,
+.pensieve-content .markdown-preview-view h2,
+.pensieve-content .markdown-preview-view h3,
+.pensieve-content .markdown-preview-view h4,
+.pensieve-content .markdown-preview-view h5,
+.pensieve-content .markdown-preview-view h6,
+.pensieve-content .markdown-preview-view ul,
+.pensieve-content .markdown-preview-view ol,
+.pensieve-content .markdown-preview-view blockquote,
+.pensieve-content .markdown-preview-view code,
+.pensieve-content .markdown-preview-view pre {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+}
+
+.pensieve-content .task-list-item {
+    margin: 5px 0;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+}
+
+.pensieve-content .task-list-item-checkbox {
+    margin-right: 8px;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+.pensieve-content ul, .pensieve-content ol {
+    margin: 10px 0;
+    padding-left: 20px;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+}
+
+.pensieve-content li {
+    margin: 5px 0;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+}
+
+.pensieve-content p {
+    margin: 8px 0;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+}
+
+.pensieve-content h1, .pensieve-content h2, .pensieve-content h3, 
+.pensieve-content h4, .pensieve-content h5, .pensieve-content h6 {
+    margin: 15px 0 10px 0;
+    color: var(--text-normal);
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+}
+
+.pensieve-content code {
+    background: var(--background-modifier-border);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: var(--font-monospace);
+}
+
+.pensieve-content pre {
+    background: var(--background-secondary);
+    padding: 10px;
+    border-radius: 5px;
+    overflow-x: auto;
+    margin: 10px 0;
+}
+
+.pensieve-content blockquote {
+    border-left: 3px solid var(--interactive-accent);
+    padding-left: 15px;
+    margin: 10px 0;
+    color: var(--text-muted);
+}
+
+/* Export buttons container */
+.pensieve-export-buttons {
+    margin-top: 20px;
+    padding: 15px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+}
+
+.pensieve-export-buttons h4 {
+    margin: 0 0 10px 0;
+    color: var(--text-normal);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.pensieve-export-buttons button {
+    margin: 5px 5px 5px 0;
+    font-size: 12px;
+    padding: 6px 12px;
 }
 
 .pensieve-content ul {
@@ -198,11 +414,12 @@
 
 /* Project Header */
 .pensieve-project-header {
-    margin-bottom: 20px;
-    padding: 15px;
+    margin-bottom: 10px;
+    padding: 12px;
     background: var(--background-secondary);
     border-radius: 8px;
     border: 1px solid var(--background-modifier-border);
+    flex-shrink: 0;
 }
 
 .pensieve-project-header h3 {
@@ -268,18 +485,19 @@
 /* Responsive Design */
 @media (max-width: 768px) {
     .pensieve-dashboard {
-        width: 95vw;
-        height: 90vh;
+        width: 100%;
+        height: 100%;
     }
 
     .pensieve-panels {
         grid-template-columns: 1fr;
-        height: auto;
+        gap: 10px;
     }
 
     .pensieve-controls {
         flex-direction: column;
-        gap: 15px;
+        gap: 10px;
+        flex-wrap: wrap;
     }
 
     .pensieve-control-group {
@@ -294,6 +512,32 @@
 
     .pensieve-view-selector {
         justify-content: center;
+    }
+
+    .pensieve-panel {
+        min-height: 120px;
+        padding: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .pensieve-dashboard-content {
+        padding: 10px;
+    }
+
+    .pensieve-controls {
+        padding: 10px;
+        gap: 8px;
+    }
+
+    .pensieve-panel {
+        padding: 10px;
+        min-height: 100px;
+    }
+
+    .pensieve-panel h3 {
+        font-size: 14px;
+        margin-bottom: 8px;
     }
 }
 

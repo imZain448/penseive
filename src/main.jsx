@@ -215,48 +215,57 @@ export default class PensievePlugin extends Plugin {
             /* Top Row: Status + Status Summary */
             .pensieve-top-row {
                 display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 8px;
-                margin-bottom: 8px;
-                height: 200px;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 15px;
+                margin-bottom: 10px;
+                min-height: 300px;
+                flex: 1;
             }
 
             /* Bottom Row: Tasks + Insights */
             .pensieve-bottom-row {
                 display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 8px;
-                height: 300px;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 15px;
+                min-height: 400px;
+                flex: 1;
             }
 
             .pensieve-panels {
                 display: grid;
-                grid-template-columns: 1fr 1fr 1fr;
-                gap: 20px;
-                height: 400px;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 15px;
+                flex: 1;
+                min-height: 400px;
             }
 
             .pensieve-panel {
                 background: var(--background-secondary);
                 border: 1px solid var(--background-modifier-border);
                 border-radius: 8px;
-                padding: 12px;
+                padding: 15px;
                 overflow-y: auto;
                 position: relative;
+                min-height: 200px;
+                display: flex;
+                flex-direction: column;
             }
 
             .pensieve-panel h3 {
-                margin: 0 0 15px 0;
+                margin: 0 0 10px 0;
                 color: var(--text-normal);
                 font-size: 16px;
                 font-weight: 600;
                 border-bottom: 2px solid var(--interactive-accent);
                 padding-bottom: 8px;
+                flex-shrink: 0;
             }
 
             .pensieve-content {
                 line-height: 1.6;
                 color: var(--text-normal);
+                flex: 1;
+                overflow-y: auto;
             }
 
             .pensieve-content ul {

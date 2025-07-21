@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Notice, TFolder, TFile, Modal } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Notice, TFolder, TFile, Modal, MarkdownRenderer } from 'obsidian';
 import { generateAutolog, getRecentAutologs } from './autologs-manager.js';
 import { updateProjectMemories } from './memory-manager.js';
 import { LLMExtractor } from './llm-extractor.js';
@@ -46,7 +46,7 @@ export class PensieveDashboardView extends ItemView {
 
         try {
             this.renderHeader();
-            this.renderContent();
+            await this.renderContent();
             await this.loadInitialData();
         } catch (error) {
             console.error('Error rendering dashboard:', error);
@@ -79,8 +79,8 @@ export class PensieveDashboardView extends ItemView {
             text: 'Autologs',
             cls: this.currentView === 'autologs' ? 'active' : ''
         });
-        autologsBtn.onclick = () => {
-            this.switchView('autologs');
+        autologsBtn.onclick = async () => {
+            await this.switchView('autologs');
             this.updateButtonStates();
         };
 
@@ -88,8 +88,8 @@ export class PensieveDashboardView extends ItemView {
             text: 'Project Memories',
             cls: this.currentView === 'project_memories' ? 'active' : ''
         });
-        projectMemoriesBtn.onclick = () => {
-            this.switchView('project_memories');
+        projectMemoriesBtn.onclick = async () => {
+            await this.switchView('project_memories');
             this.updateButtonStates();
         };
         console.log('Header rendered');
@@ -98,14 +98,14 @@ export class PensieveDashboardView extends ItemView {
     /**
      * Render the main content area
      */
-    renderContent() {
+    async renderContent() {
         console.log('Rendering content for view:', this.currentView);
         const content = this.containerEl.createDiv('pensieve-dashboard-content');
 
         if (this.currentView === 'autologs') {
-            this.renderAutologsView(content);
+            await this.renderAutologsView(content);
         } else {
-            this.renderProjectMemoriesView(content);
+            await this.renderProjectMemoriesView(content);
         }
         console.log('Content rendered');
     }
@@ -128,7 +128,7 @@ export class PensieveDashboardView extends ItemView {
     /**
      * Render autologs view
      */
-    renderAutologsView(container) {
+    async renderAutologsView(container) {
         console.log('Rendering autologs view...');
         // Controls section
         const controls = container.createDiv('pensieve-controls');
@@ -174,13 +174,14 @@ export class PensieveDashboardView extends ItemView {
 
         // Results section
         this.autologResultsContainer = container.createDiv('pensieve-results');
-        this.renderAutologResults();
+        this.autologResultsContainer.addClass('pensieve-autolog-results');
+        await this.renderAutologResults();
     }
 
     /**
      * Render project memories view
      */
-    renderProjectMemoriesView(container) {
+    async renderProjectMemoriesView(container) {
         // Controls section
         const controls = container.createDiv('pensieve-controls');
 
@@ -224,13 +225,14 @@ export class PensieveDashboardView extends ItemView {
 
         // Results section
         this.projectResultsContainer = container.createDiv('pensieve-results');
-        this.renderProjectResults();
+        this.projectResultsContainer.addClass('pensieve-project-results');
+        await this.renderProjectResults();
     }
 
     /**
      * Render autolog results
      */
-    renderAutologResults() {
+    async renderAutologResults() {
         this.autologResultsContainer.empty();
 
         if (!this.autologData) {
@@ -241,10 +243,13 @@ export class PensieveDashboardView extends ItemView {
             return;
         }
 
+        console.log('Autolog data:', this.autologData);
+
         // Summary section
         const summary = this.autologResultsContainer.createDiv('pensieve-summary');
         summary.createEl('h3', { text: 'Summary' });
-        summary.createEl('p', { text: this.autologData.summary || 'No summary available' });
+        const summaryContent = summary.createEl('div', { cls: 'pensieve-content' });
+        await MarkdownRenderer.render(this.app, this.autologData.summary || 'No summary available', summaryContent, '', this.plugin);
 
         // Three-panel layout
         const panels = this.autologResultsContainer.createDiv('pensieve-panels');
@@ -252,26 +257,23 @@ export class PensieveDashboardView extends ItemView {
         // What was done panel
         const donePanel = panels.createDiv('pensieve-panel');
         donePanel.createEl('h3', { text: 'What Was Done' });
-        donePanel.createEl('div', {
-            html: this.formatContent(this.autologData.completed),
-            cls: 'pensieve-content'
-        });
+        const doneContent = donePanel.createEl('div', { cls: 'pensieve-content' });
+        await MarkdownRenderer.render(this.app, this.autologData.completed || 'No completed tasks available', doneContent, '', this.plugin);
+        this.ensureTextSelection(doneContent);
 
         // What wasn't done panel
         const notDonePanel = panels.createDiv('pensieve-panel');
         notDonePanel.createEl('h3', { text: 'What Was Not Done' });
-        notDonePanel.createEl('div', {
-            html: this.formatContent(this.autologData.incomplete),
-            cls: 'pensieve-content'
-        });
+        const notDoneContent = notDonePanel.createEl('div', { cls: 'pensieve-content' });
+        await MarkdownRenderer.render(this.app, this.autologData.incomplete || 'No incomplete tasks available', notDoneContent, '', this.plugin);
+        this.ensureTextSelection(notDoneContent);
 
         // Insights panel
         const insightsPanel = panels.createDiv('pensieve-panel');
         insightsPanel.createEl('h3', { text: 'Key Insights' });
-        insightsPanel.createEl('div', {
-            html: this.formatContent(this.autologData.insights),
-            cls: 'pensieve-content'
-        });
+        const insightsContent = insightsPanel.createEl('div', { cls: 'pensieve-content' });
+        await MarkdownRenderer.render(this.app, this.autologData.insights || 'No insights available', insightsContent, '', this.plugin);
+        this.ensureTextSelection(insightsContent);
 
         // Export insights button
         const exportBtn = insightsPanel.createEl('button', {
@@ -284,7 +286,7 @@ export class PensieveDashboardView extends ItemView {
     /**
  * Render project results
  */
-    renderProjectResults() {
+    async renderProjectResults() {
         this.projectResultsContainer.empty();
 
         if (!this.projectData) {
@@ -302,21 +304,21 @@ export class PensieveDashboardView extends ItemView {
         // Top row: Status + Status Summary
         const topRow = this.projectResultsContainer.createDiv('pensieve-top-row');
 
+        console.log('Project data:', this.projectData);
+
         // Status panel (left, larger)
         const statusPanel = topRow.createDiv('pensieve-panel pensieve-status-panel');
         statusPanel.createEl('h3', { text: 'Status' });
-        statusPanel.createEl('div', {
-            html: this.formatProjectStatus(this.projectData.status),
-            cls: 'pensieve-content'
-        });
+        const statusContent = statusPanel.createEl('div', { cls: 'pensieve-content' });
+        await MarkdownRenderer.render(this.app, this.projectData.status, statusContent, '', this.plugin);
+        this.ensureTextSelection(statusContent);
 
         // Status Summary panel (right, smaller)
         const statusSummaryPanel = topRow.createDiv('pensieve-panel pensieve-summary-panel');
         statusSummaryPanel.createEl('h3', { text: 'Status Summary' });
-        statusSummaryPanel.createEl('div', {
-            html: this.formatProjectStatusSummary(this.projectData.status),
-            cls: 'pensieve-content'
-        });
+        const statusSummaryContent = statusSummaryPanel.createEl('div', { cls: 'pensieve-content' });
+        await MarkdownRenderer.render(this.app, this.projectData.statusSummary, statusSummaryContent, '', this.plugin);
+        this.ensureTextSelection(statusSummaryContent);
 
         // Bottom row: Tasks + Insights
         const bottomRow = this.projectResultsContainer.createDiv('pensieve-bottom-row');
@@ -324,31 +326,25 @@ export class PensieveDashboardView extends ItemView {
         // Tasks panel (left)
         const tasksPanel = bottomRow.createDiv('pensieve-panel pensieve-tasks-panel');
         tasksPanel.createEl('h3', { text: 'Tasks' });
-        tasksPanel.createEl('div', {
-            html: this.formatProjectTasks(this.projectData.tasks),
-            cls: 'pensieve-content'
-        });
+        const tasksContent = tasksPanel.createEl('div', { cls: 'pensieve-content' });
+        await MarkdownRenderer.render(this.app, this.projectData.tasks, tasksContent, '', this.plugin);
+        this.ensureTextSelection(tasksContent);
 
         // Insights panel (right)
         const insightsPanel = bottomRow.createDiv('pensieve-panel pensieve-insights-panel');
         insightsPanel.createEl('h3', { text: 'Insights' });
-        insightsPanel.createEl('div', {
-            html: this.formatProjectInsights(this.projectData.insights),
-            cls: 'pensieve-content'
-        });
+        const insightsContent = insightsPanel.createEl('div', { cls: 'pensieve-content' });
+        await MarkdownRenderer.render(this.app, this.projectData.insights, insightsContent, '', this.plugin);
+        this.ensureTextSelection(insightsContent);
 
-        // Export insights button
-        const exportBtn = insightsPanel.createEl('button', {
-            text: 'Export Insights as Note',
-            cls: 'pensieve-btn secondary'
-        });
-        exportBtn.onclick = () => this.exportProjectInsightsAsNote();
+        // Add individual export buttons for each checkpoint
+        this.addInsightExportButtons(insightsPanel, this.projectData.insights);
     }
 
     /**
      * Switch between views
      */
-    switchView(view) {
+    async switchView(view) {
         console.log('Switching to view:', view);
         this.currentView = view;
 
@@ -359,8 +355,8 @@ export class PensieveDashboardView extends ItemView {
         }
 
         // Re-render only the content, not the header
-        this.renderContent();
-        this.loadInitialData();
+        await this.renderContent();
+        await this.loadInitialData();
     }
 
     /**
@@ -392,7 +388,7 @@ export class PensieveDashboardView extends ItemView {
                 this.autologData = null;
             }
 
-            this.renderAutologResults();
+            await this.renderAutologResults();
         } catch (error) {
             console.error('Error loading autolog data:', error);
             new Notice('Error loading autolog data');
@@ -459,13 +455,19 @@ export class PensieveDashboardView extends ItemView {
             const tasksFile = this.app.vault.getAbstractFileByPath(`${memoryPath}/tasks.md`);
             const insightsFile = this.app.vault.getAbstractFileByPath(`${memoryPath}/insights.md`);
 
+            // Parse files with checkpoint logic
+            const statusContent = statusFile ? await this.app.vault.read(statusFile) : 'No status data available';
+            const tasksContent = tasksFile ? await this.app.vault.read(tasksFile) : 'No tasks data available';
+            const insightsContent = insightsFile ? await this.app.vault.read(insightsFile) : 'No insights data available';
+
             this.projectData = {
-                status: statusFile ? await this.app.vault.read(statusFile) : 'No status data available',
-                tasks: tasksFile ? await this.app.vault.read(tasksFile) : 'No tasks data available',
-                insights: insightsFile ? await this.app.vault.read(insightsFile) : 'No insights data available'
+                status: this.parseLatestStatus(statusContent),
+                statusSummary: this.parseLatestStatusSummary(statusContent),
+                tasks: this.parseLastNCheckpoints(tasksContent, this.lastNCheckpoints),
+                insights: this.parseLastNCheckpoints(insightsContent, this.lastNCheckpoints)
             };
 
-            this.renderProjectResults();
+            await this.renderProjectResults();
         } catch (error) {
             console.error('Error loading project data:', error);
             new Notice('Error loading project data');
@@ -613,15 +615,17 @@ Date: ${new Date().toISOString()}
         let currentSection = '';
 
         for (const line of lines) {
-            if (line.startsWith('## Summary')) {
+            const trimmedLine = line.trim();
+
+            if (trimmedLine.startsWith('## Summary')) {
                 currentSection = 'summary';
-            } else if (line.startsWith('## What Was Done')) {
+            } else if (trimmedLine.startsWith('## What Was Done')) {
                 currentSection = 'completed';
-            } else if (line.startsWith('## What Was Not Done')) {
+            } else if (trimmedLine.startsWith('## What Was Not Done')) {
                 currentSection = 'incomplete';
-            } else if (line.startsWith('## Key Insights')) {
+            } else if (trimmedLine.startsWith('## Key Insights')) {
                 currentSection = 'insights';
-            } else if (line.trim() && currentSection) {
+            } else if (trimmedLine && currentSection) {
                 sections[currentSection] += (sections[currentSection] ? '\n' : '') + line;
             }
         }
@@ -631,7 +635,14 @@ Date: ${new Date().toISOString()}
 
     formatContent(content) {
         if (!content) return 'No content available';
-        return content.replace(/\n/g, '<br>');
+        if (content.trim() === '') return 'No content available';
+
+        // Convert markdown-style content to proper HTML
+        return content
+            .replace(/\n/g, '<br>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/`(.*?)`/g, '<code>$1</code>');
     }
 
     formatProjectStatus(content) {
@@ -663,6 +674,231 @@ Date: ${new Date().toISOString()}
         }
 
         return summary.length > 0 ? summary.join('<br>') : 'No summary data available';
+    }
+
+    /**
+ * Parse latest status from content (ignores checkpoints, shows only latest)
+ */
+    parseLatestStatus(content) {
+        if (!content) return 'No status data available';
+
+        const lines = content.split('\n');
+        let currentSection = '';
+        let statusContent = '';
+        let latestStatusContent = '';
+
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+
+            if (trimmedLine.startsWith('## ')) {
+                // Found a checkpoint, save previous status and start new one
+                if (currentSection === 'status' && statusContent) {
+                    latestStatusContent = statusContent;
+                }
+                currentSection = 'status';
+                statusContent = '';
+            } else if (trimmedLine.startsWith('### Status Summary')) {
+                // Stop at status summary section
+                break;
+            } else if (currentSection === 'status' && trimmedLine) {
+                statusContent += (statusContent ? '\n' : '') + line;
+            }
+        }
+
+        // Get the last status content
+        if (statusContent) {
+            latestStatusContent = statusContent;
+        }
+
+        return latestStatusContent || 'No status data available';
+    }
+
+    /**
+     * Parse latest status summary from content
+     */
+    parseLatestStatusSummary(content) {
+        if (!content) return 'No status summary available';
+
+        const lines = content.split('\n');
+        let currentSection = '';
+        let summaryContent = '';
+
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+
+            if (trimmedLine.startsWith('### Status Summary')) {
+                currentSection = 'summary';
+            } else if (trimmedLine.startsWith('## ') && currentSection === 'summary') {
+                // Found next checkpoint, stop
+                break;
+            } else if (currentSection === 'summary' && trimmedLine) {
+                summaryContent += (summaryContent ? '\n' : '') + line;
+            }
+        }
+
+        return summaryContent || 'No status summary available';
+    }
+
+    /**
+     * Parse last N checkpoints from content
+     */
+    parseLastNCheckpoints(content, lastN) {
+        if (!content) return 'No data available';
+
+        const lines = content.split('\n');
+        const checkpoints = [];
+        let currentCheckpoint = null;
+        let currentContent = '';
+
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+
+            if (trimmedLine.startsWith('## ')) {
+                // Save previous checkpoint if exists
+                if (currentCheckpoint) {
+                    checkpoints.push({
+                        title: currentCheckpoint,
+                        content: currentContent.trim()
+                    });
+                }
+
+                // Start new checkpoint
+                currentCheckpoint = trimmedLine.substring(3); // Remove '## '
+                currentContent = '';
+            } else if (currentCheckpoint && trimmedLine) {
+                currentContent += (currentContent ? '\n' : '') + line;
+            }
+        }
+
+        // Add the last checkpoint
+        if (currentCheckpoint) {
+            checkpoints.push({
+                title: currentCheckpoint,
+                content: currentContent.trim()
+            });
+        }
+
+        // Return last N checkpoints
+        const lastNCheckpoints = checkpoints.slice(-lastN);
+
+        if (lastNCheckpoints.length === 0) {
+            return 'No checkpoint data available';
+        }
+
+        // Format as markdown with H2 headings
+        return lastNCheckpoints.map(checkpoint =>
+            `## ${checkpoint.title}\n\n${checkpoint.content}`
+        ).join('\n\n');
+    }
+
+    /**
+     * Add individual export buttons for each insight checkpoint
+     */
+    addInsightExportButtons(insightsPanel, insightsContent) {
+        if (!insightsContent || insightsContent === 'No data available') {
+            return;
+        }
+
+        // Parse the insights content to find checkpoints
+        const lines = insightsContent.split('\n');
+        const checkpoints = [];
+        let currentCheckpoint = null;
+        let currentContent = '';
+
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+
+            if (trimmedLine.startsWith('## ')) {
+                // Save previous checkpoint if exists
+                if (currentCheckpoint) {
+                    checkpoints.push({
+                        title: currentCheckpoint,
+                        content: currentContent.trim()
+                    });
+                }
+
+                // Start new checkpoint
+                currentCheckpoint = trimmedLine.substring(3); // Remove '## '
+                currentContent = '';
+            } else if (currentCheckpoint && trimmedLine) {
+                currentContent += (currentContent ? '\n' : '') + line;
+            }
+        }
+
+        // Add the last checkpoint
+        if (currentCheckpoint) {
+            checkpoints.push({
+                title: currentCheckpoint,
+                content: currentContent.trim()
+            });
+        }
+
+        // Create export buttons for each checkpoint
+        if (checkpoints.length > 0) {
+            const exportButtonsContainer = insightsPanel.createDiv('pensieve-export-buttons');
+            exportButtonsContainer.createEl('h4', { text: 'Export Individual Insights:' });
+
+            checkpoints.forEach((checkpoint, index) => {
+                const exportBtn = exportButtonsContainer.createEl('button', {
+                    text: `Export: ${checkpoint.title}`,
+                    cls: 'pensieve-btn secondary'
+                });
+                exportBtn.onclick = () => this.exportIndividualInsight(checkpoint.title, checkpoint.content);
+            });
+        }
+    }
+
+    /**
+     * Export individual insight checkpoint as note
+     */
+    async exportIndividualInsight(checkpointTitle, insightContent) {
+        try {
+            const filename = `Project Insight - ${this.selectedProject} - ${checkpointTitle}.md`;
+            const content = `# Project Insight - ${this.selectedProject}
+
+## ${checkpointTitle}
+
+${insightContent}
+
+---
+Generated from Pensieve Dashboard
+Project: ${this.selectedProject}
+Checkpoint: ${checkpointTitle}
+Date: ${new Date().toISOString()}
+`;
+
+            await this.app.vault.create(filename, content);
+            new Notice(`Insight exported as ${filename}`);
+        } catch (error) {
+            console.error('Error exporting individual insight:', error);
+            new Notice('Error exporting insight');
+        }
+    }
+
+    /**
+     * Ensure text selection works in rendered content
+     */
+    ensureTextSelection(element) {
+        // Set user-select style on the element and all its children
+        element.style.userSelect = 'text';
+        element.style.webkitUserSelect = 'text';
+        element.style.mozUserSelect = 'text';
+        element.style.msUserSelect = 'text';
+
+        // Also set on all child elements
+        const allElements = element.querySelectorAll('*');
+        allElements.forEach(el => {
+            // Skip buttons, inputs, and checkboxes
+            if (el.tagName === 'BUTTON' || el.tagName === 'INPUT' || el.tagName === 'SELECT' ||
+                el.classList.contains('task-list-item-checkbox')) {
+                return;
+            }
+
+            el.style.userSelect = 'text';
+            el.style.webkitUserSelect = 'text';
+            el.style.mozUserSelect = 'text';
+            el.style.msUserSelect = 'text';
+        });
     }
 }
 
