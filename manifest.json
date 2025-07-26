@@ -5,7 +5,7 @@
     "minAppVersion": "0.15.0",
     "description": "Context-aware memory and note organization for Obsidian using AI to extract insights, tasks, and generate intelligent summaries.",
     "author": "Zain Ahmad",
-    "authorUrl": "https://obsidian.md",
-    "fundingUrl": "https://obsidian.md/pricing",
+    "authorUrl": "https://github.com/imZain448",
+    "fundingUrl": "https://github.com/sponsors/imZain448",
     "isDesktopOnly": false
 }
