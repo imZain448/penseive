@@ -6,6 +6,9 @@ Whether you're researching, coding, or writing, Pensieve captures your **mental 
 
 Stay organized without slowing down. Let your notes think with you.
 
+![Pensieve Dashboard Demo](docs/images/pensieve-demo.gif)
+*The Pensieve dashboard showing project overview and memory insights*
+
 ## ✨ Features
 
 ### 🧭 **Smart Memory Management**
@@ -13,11 +16,13 @@ Stay organized without slowing down. Let your notes think with you.
 - **Context-Aware Summaries**: Automatically extracts key information from your notes using AI
 - **Memory Checkpoints**: Never lose track of where you left off on any project
 
+
 ### 🧹 **Note Refinement Pipeline**
 - **Clean Note Generation**: Transform messy notes into well-structured, shareable content
 - **Configurable Output**: Control tone, verbosity, and formatting
 - **Batch Processing**: Process multiple notes efficiently with compression ratios
 - **Internal Linking**: Automatic generation of Obsidian wiki-links
+
 
 ### 📊 **Interactive Dashboard**
 - **Project Overview**: Visual status of all your projects at a glance
@@ -25,11 +30,14 @@ Stay organized without slowing down. Let your notes think with you.
 - **Autolog Analysis**: Analyze patterns across your daily/weekly/monthly activities
 - **Real-time Updates**: See memory updates as they happen
 
+
 ### 🤖 **Multi-LLM Support**
 - **OpenAI**: GPT-3.5, GPT-4, GPT-4 Turbo
 - **Google Gemini**: Gemini Pro, Gemini 1.5, Gemini 2.0
+- **Anthropic**: Claude 3, Claude 3.5, Claude 2
 - **Local Models**: Ollama integration for privacy-focused users
 - **Custom Endpoints**: Support for any compatible API
+
 
 ### ⚡ **Automation & Scheduling**
 - **Automatic Updates**: Set intervals for memory updates, note refinement, and autolog generation
@@ -50,6 +58,7 @@ Stay organized without slowing down. Let your notes think with you.
    - Search for "Pensieve"
    - Install and enable
 
+
 ### 2. Initial Setup
 
 1. **Configure Folders**:
@@ -59,7 +68,7 @@ Stay organized without slowing down. Let your notes think with you.
    - Set your **Clean Output Folder** (where refined notes will be saved)
 
 2. **Configure LLM Provider**:
-   - Choose your preferred LLM provider (OpenAI, Gemini, or Ollama)
+   - Choose your preferred LLM provider (OpenAI, Gemini, Anthropic, or Ollama)
    - Enter your API key (if required)
    - Select your preferred model
 
@@ -67,6 +76,9 @@ Stay organized without slowing down. Let your notes think with you.
    - Toggle automatic memory updates
    - Configure note refinement settings
    - Set up autolog generation
+
+![Settings Configuration](docs/images/pensieve-basic-settings.png)
+*Complete settings panel with all configuration options*
 
 ### 3. First Run
 
@@ -81,6 +93,9 @@ Stay organized without slowing down. Let your notes think with you.
 3. **Refine Your Notes**:
    - Run note refinement on a project
    - Check the output in your Clean Output folder
+
+![First Run Demo](docs/images/first-run.gif)
+*Complete walkthrough of initial setup and first memory generation*
 
 ## 📁 Folder Structure
 
@@ -111,6 +126,7 @@ Your Vault/
     └── Project2/
 ```
 
+
 ## 🎯 Use Cases
 
 ### 🧑‍💻 **For Developers**
@@ -119,11 +135,13 @@ Your Vault/
 - Generate clean documentation from development notes
 - Identify blockers and technical debt
 
+
 ### 📚 **For Researchers**
 - Organize research notes and findings
 - Track progress across multiple research threads
 - Generate summaries for papers and presentations
 - Maintain context across long research cycles
+
 
 ### ✍️ **For Writers**
 - Organize writing projects and drafts
@@ -131,11 +149,13 @@ Your Vault/
 - Generate clean versions for sharing
 - Maintain context across multiple writing projects
 
+
 ### 🎓 **For Students**
 - Organize study notes and research
 - Track progress on assignments and projects
 - Generate summaries for revision
 - Maintain context across courses
+
 
 ## ⚙️ Configuration
 
@@ -151,10 +171,16 @@ Your Vault/
 - **Model**: Gemini Pro, Gemini 1.5, Gemini 2.0
 - **Features**: Supports longer context windows
 
+#### Anthropic
+- **API Key**: Your Anthropic API key
+- **Model**: Claude 3, Claude 3.5, Claude 2
+- **Features**: Excellent reasoning and analysis capabilities
+
 #### Ollama (Local)
 - **URL**: Defaults to `http://localhost:11434`
 - **Model**: Any model available in your Ollama installation
 - **Privacy**: All processing happens locally
+
 
 ### Note Refinement Settings
 
@@ -163,12 +189,17 @@ Your Vault/
 - **Tone**: Professional, Storytelling, or Sarcastic
 - **Emojification**: Enable/disable emojis in output
 
+
 ### Automation Settings
 
 - **Auto-update Project Memories**: Daily, weekly, or monthly
 - **Auto-refine Notes**: Automatic note refinement
 - **Auto-generate Autologs**: Daily, weekly, or monthly summaries
 - **Exclude Projects**: Skip specific projects from automation
+
+
+![Refinement Settings](./docs/images/pensieve-settings-autolog.png)
+*Note refinement configuration panel*
 
 ## 🎮 Commands
 
@@ -187,6 +218,9 @@ Your Vault/
 - `Pensieve: Export Insights as Note` - Export dashboard insights to a note
 - `Pensieve: Test LLM Connection` - Test your LLM provider connection
 
+![Command Palette](docs/images/command-palette.png)
+*Available commands in the Obsidian command palette*
+
 ## 📊 Dashboard Guide
 
 ### Autologs View
@@ -195,17 +229,20 @@ Your Vault/
 - **Generate New**: Create a new autolog for any date
 - **Analyze**: Use custom prompts to analyze autolog patterns
 
+
 ### Project Memories View
 - **Project Selector**: Choose which project to view
 - **Last N Checkpoints**: View recent memory updates
 - **Search**: Filter projects by name
 - **Load Data**: Refresh project memory data
 
+
 ### Dashboard Panels
 - **Status**: Current project status and progress
 - **Tasks**: Active and completed tasks
 - **Insights**: Recent insights, blockers, and achievements
 - **Summary**: High-level project overview
+
 
 ## 🔧 Troubleshooting
 
@@ -239,6 +276,7 @@ Your Vault/
 3. **Test Manually**: Try running commands manually to isolate issues
 4. **Report Issues**: Create an issue on GitHub with detailed information
 
+
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
@@ -249,9 +287,6 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 3. Build the plugin: `npm run build`
 4. Copy to your Obsidian plugins folder: `npm run copy`
 
-### Testing
-- Run tests: `npm test`
-- Test specific features: `npm run test:memory`, `npm run test:refinement`
 
 ## 📄 License
 
@@ -260,7 +295,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - **Obsidian Team** for the amazing platform
-- **OpenAI, Google, and Ollama** for their LLM services
+- **OpenAI, Google, Anthropic, and Ollama** for their LLM services
 - **Community Contributors** for feedback and improvements
 
 ## 📞 Support

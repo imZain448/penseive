@@ -39,6 +39,7 @@ export const DEFAULT_SETTINGS = {
 const PROVIDERS = [
     { label: "OpenAI", value: "openai" },
     { label: "Gemini", value: "gemini" },
+    { label: "Anthropic", value: "anthropic" },
     { label: "Ollama (Local)", value: "ollama" }
 ];
 
@@ -58,6 +59,17 @@ async function fetchModels(provider, apiKey) {
             const data = await res.json();
             // Gemini returns { models: [ {name: ...}, ... ] }
             return (data.models || []).map(m => m.name).sort();
+        } else if (provider === "anthropic") {
+            const res = await fetch("https://api.anthropic.com/v1/models", {
+                headers: {
+                    "x-api-key": apiKey,
+                    "anthropic-version": "2023-06-01"
+                }
+            });
+            if (!res.ok) throw new Error(`Anthropic: ${res.status} ${res.statusText}`);
+            const data = await res.json();
+            // Anthropic returns { data: [ {id: ...}, ... ] }
+            return data.data.map(m => m.id).sort();
         } else if (provider === "ollama") {
             const res = await fetch("http://localhost:11434/api/tags");
             if (!res.ok) throw new Error(`Ollama: ${res.status} ${res.statusText}`);
@@ -83,6 +95,15 @@ async function testApiKey(provider, apiKey, model, plugin) {
             const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
             if (res.ok) return "Gemini: Success!";
             return `Gemini: ${res.status} ${res.statusText}`;
+        } else if (provider === "anthropic") {
+            const res = await fetch("https://api.anthropic.com/v1/models", {
+                headers: {
+                    "x-api-key": apiKey,
+                    "anthropic-version": "2023-06-01"
+                }
+            });
+            if (res.ok) return "Anthropic: Success!";
+            return `Anthropic: ${res.status} ${res.statusText}`;
         } else if (provider === "ollama") {
             const res = await fetch("http://localhost:11434/api/tags");
             if (res.ok) return "Ollama: Success!";
@@ -216,19 +237,21 @@ export class PensieveSettingTab extends PluginSettingTab {
                 });
             });
 
-        // API Key (only for OpenAI/Gemini)
-        if (["openai", "gemini"].includes(this.plugin.settings.llmProvider)) {
+        // API Key (only for OpenAI/Gemini/Anthropic)
+        if (["openai", "gemini", "anthropic"].includes(this.plugin.settings.llmProvider)) {
             new Setting(containerEl)
                 .setName("API Key")
-                .setDesc(`Enter your ${this.plugin.settings.llmProvider === "openai" ? "OpenAI" : "Gemini"} API key`)
-                .addText(text => text
-                    .setPlaceholder("sk-...")
-                    .setValue(this.plugin.settings.apiKey)
-                    .onChange(async (value) => {
+                .setDesc(`Enter your ${this.plugin.settings.llmProvider === "openai" ? "OpenAI" : this.plugin.settings.llmProvider === "gemini" ? "Gemini" : "Anthropic"} API key`)
+                .addText(text => {
+                    text.setPlaceholder(this.plugin.settings.llmProvider === "anthropic" ? "sk-ant-..." : "sk-...");
+                    text.setValue(this.plugin.settings.apiKey);
+                    text.inputEl.type = "password"; // Explicitly set input type to password
+                    text.onChange(async (value) => {
                         this.plugin.settings.apiKey = value;
                         await this.plugin.saveSettings();
                         this.onProviderOrKeyChange();
-                    }));
+                    });
+                });
         }
 
         // Model selection (dynamic)
@@ -313,6 +336,18 @@ export class PensieveSettingTab extends PluginSettingTab {
                 });
         }
 
+        // Exclude Projects Setting
+        new Setting(containerEl)
+            .setName("Exclude Projects")
+            .setDesc("Projects to exclude from automatic updates (comma-separated)")
+            .addText(text => text
+                .setPlaceholder("project1, project2, project3")
+                .setValue(this.plugin.settings.excludeProjects.join(", "))
+                .onChange(async (value) => {
+                    this.plugin.settings.excludeProjects = value.split(",").map(p => p.trim()).filter(p => p.length > 0);
+                    await this.plugin.saveSettings();
+                }));
+
         // General Memory Updates (placeholder for future)
         new Setting(containerEl)
             .setName("Auto-update General Memories")
@@ -324,6 +359,23 @@ export class PensieveSettingTab extends PluginSettingTab {
                     this.plugin.settings.autoUpdateGeneralMemories = value;
                     await this.plugin.saveSettings();
                 }));
+
+        if (this.plugin.settings.autoUpdateGeneralMemories) {
+            new Setting(containerEl)
+                .setName("General Memory Update Interval")
+                .setDesc("How often to update general memories")
+                .addDropdown(drop => {
+                    drop.addOption("hourly", "Hourly");
+                    drop.addOption("daily", "Daily");
+                    drop.addOption("weekly", "Weekly");
+                    drop.addOption("monthly", "Monthly");
+                    drop.setValue(this.plugin.settings.generalMemoryUpdateInterval);
+                    drop.onChange(async (value) => {
+                        this.plugin.settings.generalMemoryUpdateInterval = value;
+                        await this.plugin.saveSettings();
+                    });
+                });
+        }
 
         // Note Refinement Settings
         new Setting(containerEl)

@@ -10,6 +10,7 @@ export class LLMExtractor {
         this.tokenEstimates = {
             openai: { 'gpt-3.5': 4096, 'gpt-4': 8192, 'gpt-4-turbo': 128000 },
             gemini: { 'gemini-pro': 32768, 'gemini-1.5': 1048576, 'gemini-2.0': 32768 },
+            anthropic: { 'claude-3': 200000, 'claude-3.5': 200000, 'claude-2': 100000 },
             ollama: { llama2: 4096, mistral: 8192, phi3: 8192 } // Default estimates
         };
     }
@@ -88,6 +89,8 @@ export class LLMExtractor {
                 return await this.callOpenAI(prompt, systemPrompt);
             } else if (llmProvider === 'gemini') {
                 return await this.callGemini(prompt, systemPrompt);
+            } else if (llmProvider === 'anthropic') {
+                return await this.callAnthropic(prompt, systemPrompt);
             } else if (llmProvider === 'ollama') {
                 return await this.callOllama(prompt, systemPrompt);
             } else {
@@ -162,6 +165,41 @@ export class LLMExtractor {
 
         const data = await response.json();
         return data.candidates[0].content.parts[0].text;
+    }
+
+    /**
+     * Call Anthropic API
+     * @param {string} prompt - User prompt
+     * @param {string} systemPrompt - System prompt
+     * @returns {Promise<string>} Response
+     */
+    async callAnthropic(prompt, systemPrompt) {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'x-api-key': this.settings.apiKey,
+                'anthropic-version': '2023-06-01',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: this.settings.model,
+                max_tokens: 1000,
+                messages: [
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                system: systemPrompt
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Anthropic API error: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        return data.content[0].text;
     }
 
     /**
