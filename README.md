@@ -6,8 +6,12 @@ Whether you're researching, coding, or writing, Pensieve captures your **mental 
 
 Stay organized without slowing down. Let your notes think with you.
 
-![Pensieve Dashboard Demo](docs/images/pensieve-demo.gif)
+![Pensieve Dashboard Demo](./docs/images/pensieve%20demos.gif)
 *The Pensieve dashboard showing project overview and memory insights*
+
+> [!caution]
+> **Early Release:** This plugin is still under active development. Features may change, and you may encounter bugs or incomplete functionality. 
+> But your notes are still safe because pensieve follows the principal of adding without removing.. so it nver touches your original only create new ones on top of them
 
 ## ✨ Features
 
@@ -77,7 +81,7 @@ Stay organized without slowing down. Let your notes think with you.
    - Configure note refinement settings
    - Set up autolog generation
 
-![Settings Configuration](docs/images/pensieve-basic-settings.png)
+![Settings Configuration](./docs/images/penseive-basic-settings.png)
 *Complete settings panel with all configuration options*
 
 ### 3. First Run
@@ -94,8 +98,6 @@ Stay organized without slowing down. Let your notes think with you.
    - Run note refinement on a project
    - Check the output in your Clean Output folder
 
-![First Run Demo](docs/images/first-run.gif)
-*Complete walkthrough of initial setup and first memory generation*
 
 ## 📁 Folder Structure
 
@@ -198,7 +200,7 @@ Your Vault/
 - **Exclude Projects**: Skip specific projects from automation
 
 
-![Refinement Settings](./docs/images/pensieve-settings-autolog.png)
+![Refinement Settings](./docs/images/penseive-settings-autolog.png)
 *Note refinement configuration panel*
 
 ## 🎮 Commands
@@ -218,7 +220,7 @@ Your Vault/
 - `Pensieve: Export Insights as Note` - Export dashboard insights to a note
 - `Pensieve: Test LLM Connection` - Test your LLM provider connection
 
-![Command Palette](docs/images/command-palette.png)
+![Command Palette](./docs/images/penseive-command-pallete.png)
 *Available commands in the Obsidian command palette*
 
 ## 📊 Dashboard Guide
