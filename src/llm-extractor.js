@@ -2,6 +2,18 @@ import { Notice } from 'obsidian';
 import { getPrompt } from './prompts.js';
 
 /**
+ * Custom error class for request limit exceeded errors
+ */
+export class RequestLimitExceededError extends Error {
+    constructor(provider, model, message) {
+        super(message);
+        this.name = 'RequestLimitExceededError';
+        this.provider = provider;
+        this.model = model;
+    }
+}
+
+/**
  * LLM-powered memory extractor with token management
  */
 export class LLMExtractor {
@@ -127,6 +139,24 @@ export class LLMExtractor {
         });
 
         if (!response.ok) {
+            // Check for rate limit errors
+            if (response.status === 429) {
+                throw new RequestLimitExceededError('openai', this.settings.model,
+                    'OpenAI rate limit exceeded. Please try again later or choose a different model.');
+            }
+
+            // Check for quota exceeded errors
+            const errorData = await response.json().catch(() => ({}));
+            if (errorData.error && (
+                errorData.error.code === 'insufficient_quota' ||
+                errorData.error.message?.toLowerCase().includes('quota') ||
+                errorData.error.message?.toLowerCase().includes('rate limit') ||
+                errorData.error.message?.toLowerCase().includes('billing')
+            )) {
+                throw new RequestLimitExceededError('openai', this.settings.model,
+                    'OpenAI quota exceeded. Please check your billing or choose a different model.');
+            }
+
             throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
         }
 
@@ -160,6 +190,24 @@ export class LLMExtractor {
         });
 
         if (!response.ok) {
+            // Check for rate limit errors
+            if (response.status === 429) {
+                throw new RequestLimitExceededError('gemini', this.settings.model,
+                    'Gemini rate limit exceeded. Please try again later or choose a different model.');
+            }
+
+            // Check for quota exceeded errors
+            const errorData = await response.json().catch(() => ({}));
+            if (errorData.error && (
+                errorData.error.code === 'RESOURCE_EXHAUSTED' ||
+                errorData.error.message?.toLowerCase().includes('quota') ||
+                errorData.error.message?.toLowerCase().includes('rate limit') ||
+                errorData.error.message?.toLowerCase().includes('billing')
+            )) {
+                throw new RequestLimitExceededError('gemini', this.settings.model,
+                    'Gemini quota exceeded. Please check your billing or choose a different model.');
+            }
+
             throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
         }
 
@@ -195,6 +243,24 @@ export class LLMExtractor {
         });
 
         if (!response.ok) {
+            // Check for rate limit errors
+            if (response.status === 429) {
+                throw new RequestLimitExceededError('anthropic', this.settings.model,
+                    'Anthropic rate limit exceeded. Please try again later or choose a different model.');
+            }
+
+            // Check for quota exceeded errors
+            const errorData = await response.json().catch(() => ({}));
+            if (errorData.error && (
+                errorData.error.type === 'rate_limit_error' ||
+                errorData.error.message?.toLowerCase().includes('quota') ||
+                errorData.error.message?.toLowerCase().includes('rate limit') ||
+                errorData.error.message?.toLowerCase().includes('billing')
+            )) {
+                throw new RequestLimitExceededError('anthropic', this.settings.model,
+                    'Anthropic quota exceeded. Please check your billing or choose a different model.');
+            }
+
             throw new Error(`Anthropic API error: ${response.status} ${response.statusText}`);
         }
 
@@ -228,6 +294,16 @@ export class LLMExtractor {
         });
 
         if (!response.ok) {
+            // Ollama typically doesn't have rate limits, but check for model not found or server errors
+            const errorData = await response.json().catch(() => ({}));
+            if (errorData.error && (
+                errorData.error.includes('model not found') ||
+                errorData.error.includes('server error')
+            )) {
+                throw new RequestLimitExceededError('ollama', this.settings.model,
+                    'Ollama model not available. Please check if the model is installed or choose a different model.');
+            }
+
             throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
         }
 
@@ -246,7 +322,8 @@ export class LLMExtractor {
 
         const allTasks = {
             explicit: [],
-            implied: []
+            implied: [],
+            all: ""
         };
 
         for (let i = 0; i < chunks.length; i++) {
@@ -257,9 +334,14 @@ export class LLMExtractor {
                 const response = await this.makeLLMCall(user, system);
                 const parsedTasks = this.parseTaskResponse(response);
 
-                // Merge results
-                allTasks.explicit.push(...parsedTasks.explicit);
-                allTasks.implied.push(...parsedTasks.implied);
+                if (parsedTasks.explicit.length === 0 && parsedTasks.implied.length === 0) {
+                    allTasks.all = response;
+                }
+                else {
+                    // Merge results
+                    allTasks.explicit.push(...parsedTasks.explicit);
+                    allTasks.implied.push(...parsedTasks.implied);
+                }
             } catch (error) {
                 console.error(`Error extracting tasks from chunk ${i + 1}:`, error);
             }
@@ -349,9 +431,9 @@ export class LLMExtractor {
 
         for (const line of lines) {
             const trimmed = line.trim();
-            if (trimmed.startsWith('EXPLICIT TASKS:')) {
+            if (/^(?:\*{0,2}|#{1,5})\s*EXPLICIT TASKS\b/i.test(trimmed)) {
                 currentSection = 'explicit';
-            } else if (trimmed.startsWith('IMPLIED TASKS:')) {
+            } else if (/^(?:\*{0,2}|#{1,5})\s*IMPLIED TASKS\b/i.test(trimmed)) {
                 currentSection = 'implied';
             } else if (trimmed.startsWith('-') && currentSection) {
                 const taskText = trimmed.substring(1).trim();
@@ -385,13 +467,13 @@ export class LLMExtractor {
 
         for (const line of lines) {
             const trimmed = line.trim();
-            if (trimmed.startsWith('BLOCKERS:')) {
+            if (/^(?:\*{0,2}|#{1,5})\s*BLOCKERS\b/i.test(trimmed)) {
                 currentSection = 'blockers';
-            } else if (trimmed.startsWith('BUGS/ISSUES:')) {
+            } else if (/^(?:\*{0,2}|#{1,5})\s*BUGS\s*ISSUES\b/i.test(trimmed)) {
                 currentSection = 'bugs';
-            } else if (trimmed.startsWith('ACHIEVEMENTS:')) {
+            } else if (/^(?:\*{0,2}|#{1,5})\s*ACHIEVEMENTS\b/i.test(trimmed)) {
                 currentSection = 'achievements';
-            } else if (trimmed.startsWith('GENERAL INSIGHTS:')) {
+            } else if (/^(?:\*{0,2}|#{1,5})\s*GENERAL\s*INSIGHTS\b/i.test(trimmed)) {
                 currentSection = 'general';
             } else if (trimmed.startsWith('-') && currentSection) {
                 const insight = {
@@ -418,31 +500,40 @@ export class LLMExtractor {
             progress: 50,
             lastActivity: metadata.lastActivity,
             totalNotes: metadata.totalNotes,
-            recentNotes: metadata.recentNotes
+            recentNotes: metadata.recentNotes,
+            summary: "",
+            all: []
         };
 
         const lines = response.split('\n');
 
         for (const line of lines) {
             const trimmed = line.trim();
-            if (trimmed.startsWith('STATUS:')) {
+            if (/^(?:\*{0,2}|#{1,5})\s*STATUS\b/i.test(trimmed)) {
                 const statusMatch = trimmed.match(/STATUS:\s*(\w+)/i);
                 if (statusMatch) {
                     status.status = statusMatch[1].toLowerCase();
                 }
-            } else if (trimmed.startsWith('PROGRESS:')) {
+            } else if (/^(?:\*{0,2}|#{1,5})\s*PROGRESS\b/i.test(trimmed)) {
                 const progressMatch = trimmed.match(/PROGRESS:\s*(\d+)%/);
                 if (progressMatch) {
                     status.progress = parseInt(progressMatch[1]);
                 }
-            } else if (trimmed.startsWith('LAST_ACTIVITY:')) {
+            } else if (/^(?:\*{0,2}|#{1,5})\s*LAST\s*ACTIVITY\b/i.test(trimmed)) {
                 const activityMatch = trimmed.match(/LAST_ACTIVITY:\s*(.+)/);
                 if (activityMatch) {
                     status.lastActivity = activityMatch[1].trim();
                 }
+            } else if (/^(?:\*{0,2}|#{1,5})\s*SUMMARY\b/i.test(trimmed)) {
+                const summaryMatch = trimmed.match(/SUMMARY:\s*(.+)/);
+                if (summaryMatch) {
+                    status.summary = summaryMatch[1].trim();
+                }
             }
         }
-
+        if (status.status.length === 0) {
+            status.all = lines;
+        }
         return status;
     }
 

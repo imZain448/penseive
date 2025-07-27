@@ -5,7 +5,8 @@ import {
     sortFilesByDate,
     formatDate,
     getTimeAgo,
-    sanitizeFilename
+    sanitizeFilename,
+    executeCommandWithErrorHandling
 } from './utils.js';
 import { LLMExtractor } from './llm-extractor.js';
 
@@ -16,23 +17,23 @@ import { LLMExtractor } from './llm-extractor.js';
  * @param {string[]} excludeProjects - List of projects to exclude from refinement
  */
 export async function refineProjectNotes(app, settings, excludeProjects = []) {
-    try {
-        const projects = getProjects(app, settings.projectRoot);
+    return await executeCommandWithErrorHandling(
+        async () => {
+            const projects = getProjects(app, settings.projectRoot);
 
-        // Filter out excluded projects
-        const activeProjects = projects.filter(project =>
-            !excludeProjects.includes(project.name)
-        );
+            // Filter out excluded projects
+            const activeProjects = projects.filter(project =>
+                !excludeProjects.includes(project.name)
+            );
 
-        for (const project of activeProjects) {
-            await refineSingleProjectNotes(app, settings, project);
-        }
+            for (const project of activeProjects) {
+                await refineSingleProjectNotes(app, settings, project);
+            }
 
-        new Notice(`Refined notes for ${activeProjects.length} projects`);
-    } catch (error) {
-        console.error('Error refining project notes:', error);
-        new Notice('Error refining project notes');
-    }
+            new Notice(`Refined notes for ${activeProjects.length} projects`);
+        },
+        'Refine Project Notes'
+    );
 }
 
 /**

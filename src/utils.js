@@ -1,4 +1,5 @@
-import { TFile, TFolder } from 'obsidian';
+import { TFile, TFolder, Notice } from 'obsidian';
+import { RequestLimitExceededError } from './llm-extractor.js';
 
 /**
  * Sort files by modification date (newest first)
@@ -251,4 +252,54 @@ export function extractLinks(content) {
  */
 export function generateInternalLinks(concepts) {
     return concepts.map(concept => `[[${concept}]]`).join(', ');
+}
+
+/**
+ * Handle request limit exceeded errors and halt command execution
+ * @param {Error} error - The error that occurred
+ * @param {string} commandName - Name of the command that was executing
+ * @returns {boolean} - True if the error was handled (should halt), false otherwise
+ */
+export function handleRequestLimitError(error, commandName) {
+    if (error instanceof RequestLimitExceededError) {
+        console.error(`Request limit exceeded in ${commandName}:`, error);
+
+        // Show user notification with specific guidance
+        const message = `⚠️ ${error.message}\n\nPlease choose a different model in the Pensieve settings.`;
+        new Notice(message, 10000); // Show for 10 seconds
+
+        // Log detailed error for debugging
+        console.error('RequestLimitExceededError details:', {
+            provider: error.provider,
+            model: error.model,
+            command: commandName,
+            message: error.message
+        });
+
+        return true; // Indicate that the error was handled and execution should halt
+    }
+
+    return false; // Not a request limit error, let normal error handling proceed
+}
+
+/**
+ * Wrapper function to execute commands with request limit error handling
+ * @param {Function} commandFunction - The command function to execute
+ * @param {string} commandName - Name of the command for error reporting
+ * @param {...any} args - Arguments to pass to the command function
+ * @returns {Promise<any>} - Result of the command function
+ */
+export async function executeCommandWithErrorHandling(commandFunction, commandName, ...args) {
+    try {
+        return await commandFunction(...args);
+    } catch (error) {
+        // Check if this is a request limit error
+        if (handleRequestLimitError(error, commandName)) {
+            // Halt execution - don't re-throw the error
+            return null;
+        }
+
+        // For other errors, re-throw to let normal error handling proceed
+        throw error;
+    }
 } 

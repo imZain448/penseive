@@ -4,7 +4,8 @@ import {
     getNotesInFolder,
     sortFilesByDate,
     getTimeAgo,
-    formatDate
+    formatDate,
+    executeCommandWithErrorHandling
 } from './utils.js';
 import { LLMExtractor } from './llm-extractor.js';
 
@@ -15,26 +16,46 @@ import { LLMExtractor } from './llm-extractor.js';
  * @param {string[]} excludeProjects - List of projects to exclude from updates
  */
 export async function updateProjectMemories(app, settings, excludeProjects = []) {
-    try {
-        const projects = getProjects(app, settings.projectRoot);
-        const journalNotes = getNotesInFolder(app, settings.journalFolder);
+    return await executeCommandWithErrorHandling(
+        async () => {
+            const projects = getProjects(app, settings.projectRoot);
+            const journalNotes = getNotesInFolder(app, settings.journalFolder);
 
-        // Filter out excluded projects
-        const activeProjects = projects.filter(project =>
-            !excludeProjects.includes(project.name)
-        );
+            // Filter out excluded projects
+            const activeProjects = projects.filter(project =>
+                !excludeProjects.includes(project.name)
+            );
 
-        for (const project of activeProjects) {
-            await updateSingleProjectMemory(app, settings, project, journalNotes);
-        }
+            for (const project of activeProjects) {
+                await updateSingleProjectMemory(app, settings, project, journalNotes);
+            }
 
-        new Notice(`Updated memories for ${activeProjects.length} projects`);
-    } catch (error) {
-        console.error('Error updating project memories:', error);
-        new Notice('Error updating project memories');
-    }
+            new Notice(`Updated memories for ${activeProjects.length} projects`);
+        },
+        'Update Project Memories'
+    );
 }
 
+async function checkIfProjectMemoryExist(app, settings, projectName) {
+    const memoryPath = `${settings.memoryFolder}/projects/${projectName}`;
+    const memoryFile = app.vault.getAbstractFileByPath(memoryPath);
+    if (!memoryFile) {
+        return false;
+    }
+    const memoryFiles = [`${memoryPath}/status.md`, `${memoryPath}/tasks.md`, `${memoryPath}/insights.md`];
+    for (const file of memoryFiles) {
+        const fileContent = await app.vault.read(file);
+        if (fileContent.length > 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function getProjectNotesFromItsFolder(app, settings, project) {
+    const projectNotes = getNotesInFolder(app, `${settings.projectRoot}/${project.name}`);
+    return projectNotes;
+}
 /**
  * Update memory for a single project
  * @param {App} app - Obsidian app instance
@@ -46,10 +67,16 @@ async function updateSingleProjectMemory(app, settings, project, journalNotes) {
     const projectName = project.name;
 
     // Find notes related to this project in journal
-    const projectNotes = findProjectNotesInJournal(journalNotes, projectName);
+    let projectNotes = findProjectNotesInJournal(journalNotes, projectName);
 
     if (projectNotes.length === 0) {
-        return; // No new notes for this project
+        if (await checkIfProjectMemoryExist(app, settings, projectName)) {
+            new Notice(`No new notes for ${projectName}`);
+            return;
+        }
+        else {
+            projectNotes = getProjectNotesFromItsFolder(app, settings, project);
+        }
     }
 
     // Sort notes by date
@@ -194,6 +221,11 @@ function generateMemorySection(title, data, today) {
     let section = `## ${today}\n\n`;
 
     if (title === 'Tasks') {
+        if (data.all) {
+            section += '\n';
+            section += data.all;
+            return section;
+        }
         if (data.explicit && data.explicit.length > 0) {
             section += '### Explicit Tasks\n\n';
             data.explicit.forEach(task => {

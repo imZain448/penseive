@@ -3,7 +3,8 @@ import {
     getNotesInFolder,
     sortFilesByDate,
     formatDate,
-    getTimeAgo
+    getTimeAgo,
+    executeCommandWithErrorHandling
 } from './utils.js';
 import { LLMExtractor } from './llm-extractor.js';
 
@@ -15,45 +16,45 @@ import { LLMExtractor } from './llm-extractor.js';
  * @param {Date} targetDate - Target date for the log (defaults to today)
  */
 export async function generateAutolog(app, settings, cycleType = 'daily', targetDate = new Date()) {
-    try {
-        console.log(`Generating ${cycleType} autolog for ${formatDate(targetDate)}`);
+    return await executeCommandWithErrorHandling(
+        async () => {
+            console.log(`Generating ${cycleType} autolog for ${formatDate(targetDate)}`);
 
-        // Get all journal notes
-        const journalNotes = getNotesInFolder(app, settings.journalFolder);
+            // Get all journal notes
+            const journalNotes = getNotesInFolder(app, settings.journalFolder);
 
-        if (journalNotes.length === 0) {
-            new Notice('No journal notes found for autolog generation');
-            return;
-        }
+            if (journalNotes.length === 0) {
+                new Notice('No journal notes found for autolog generation');
+                return;
+            }
 
-        // Filter notes by cycle and date
-        const relevantNotes = filterNotesByCycle(journalNotes, cycleType, targetDate);
+            // Filter notes by cycle and date
+            const relevantNotes = filterNotesByCycle(journalNotes, cycleType, targetDate);
 
-        if (relevantNotes.length === 0) {
-            new Notice(`No notes found for ${cycleType} cycle ending ${formatDate(targetDate)}`);
-            return;
-        }
+            if (relevantNotes.length === 0) {
+                new Notice(`No notes found for ${cycleType} cycle ending ${formatDate(targetDate)}`);
+                return;
+            }
 
-        // Sort notes by date
-        const sortedNotes = sortFilesByDate(relevantNotes);
+            // Sort notes by date
+            const sortedNotes = sortFilesByDate(relevantNotes);
 
-        // Combine notes content for LLM processing
-        const notesContent = await combineNotesContent(app, sortedNotes);
+            // Combine notes content for LLM processing
+            const notesContent = await combineNotesContent(app, sortedNotes);
 
-        // Initialize LLM extractor
-        const extractor = new LLMExtractor(settings);
+            // Initialize LLM extractor
+            const extractor = new LLMExtractor(settings);
 
-        // Generate autolog summary using LLM
-        const autologData = await extractor.generateAutolog(notesContent, cycleType, targetDate);
+            // Generate autolog summary using LLM
+            const autologData = await extractor.generateAutolog(notesContent, cycleType, targetDate);
 
-        // Create autolog file
-        await createAutologFile(app, settings, cycleType, targetDate, autologData, relevantNotes);
+            // Create autolog file
+            await createAutologFile(app, settings, cycleType, targetDate, autologData, relevantNotes);
 
-        new Notice(`Generated ${cycleType} autolog with ${relevantNotes.length} notes`);
-    } catch (error) {
-        console.error('Error generating autolog:', error);
-        new Notice('Error generating autolog');
-    }
+            new Notice(`Generated ${cycleType} autolog with ${relevantNotes.length} notes`);
+        },
+        `Generate ${cycleType.charAt(0).toUpperCase() + cycleType.slice(1)} Autolog`
+    );
 }
 
 /**

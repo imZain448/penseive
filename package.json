@@ -19,7 +19,7 @@
     "scripts": {
         "build": "esbuild src/main.jsx --bundle --outfile=main.js --format=cjs --jsx=automatic --external:obsidian && esbuild src/settings.jsx --bundle --outfile=settings.js --format=cjs --jsx=automatic --external:obsidian",
         "dev": "npm run build && npm run copy",
-        "copy": "cpx main.js \"C:/obsidian/cs-02hero/.obsidian/plugins/pensieve\" && cpx settings.js \"C:/obsidian/cs-02hero/.obsidian/plugins/pensieve\" && cpx manifest.json \"C:/obsidian/cs-02hero/.obsidian/plugins/pensieve\"",
+        "copy": "cpx main.js \"C:/obsidian/zain-personal/.obsidian/plugins/pensieve\" && cpx settings.js \"C:/obsidian/zain-personal/.obsidian/plugins/pensieve\" && cpx manifest.json \"C:/obsidian/zain-personal/.obsidian/plugins/pensieve\"",
         "clean": "rm -rf main.js settings.js dist/"
     },
     "dependencies": {

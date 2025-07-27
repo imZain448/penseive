@@ -405,73 +405,10 @@ var PensieveSettingTab = class extends import_obsidian.PluginSettingTab {
 var import_obsidian4 = require("obsidian");
 
 // src/utils.js
-var import_obsidian2 = require("obsidian");
-function sortFilesByDate(files) {
-  return files.sort((a, b) => b.stat.mtime - a.stat.mtime);
-}
-function getProjects(app, projectRoot) {
-  const rootFolder = app.vault.getAbstractFileByPath(projectRoot);
-  if (!rootFolder || !(rootFolder instanceof import_obsidian2.TFolder)) {
-    return [];
-  }
-  return rootFolder.children.filter((child) => child instanceof import_obsidian2.TFolder).sort((a, b) => a.name.localeCompare(b.name));
-}
-function getNotesInFolder(app, folderPath) {
-  const folder = app.vault.getAbstractFileByPath(folderPath);
-  if (!folder || !(folder instanceof import_obsidian2.TFolder)) {
-    return [];
-  }
-  return folder.children.filter((child) => child instanceof import_obsidian2.TFile && child.extension === "md").sort((a, b) => b.stat.mtime - a.stat.mtime);
-}
-function getNotesRecursively(app, folderPath) {
-  const folder = app.vault.getAbstractFileByPath(folderPath);
-  if (!folder || !(folder instanceof import_obsidian2.TFolder)) {
-    return [];
-  }
-  const notes = [];
-  function traverseFolder(currentFolder) {
-    for (const child of currentFolder.children) {
-      if (child instanceof import_obsidian2.TFile && child.extension === "md") {
-        notes.push(child);
-      } else if (child instanceof import_obsidian2.TFolder) {
-        traverseFolder(child);
-      }
-    }
-  }
-  traverseFolder(folder);
-  return notes.sort((a, b) => b.stat.mtime - a.stat.mtime);
-}
-function formatDate(date) {
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit"
-  });
-}
-function getTimeAgo(date) {
-  const now = /* @__PURE__ */ new Date();
-  const diffMs = now - date;
-  const diffDays = Math.floor(diffMs / (1e3 * 60 * 60 * 24));
-  const diffHours = Math.floor(diffMs / (1e3 * 60 * 60));
-  const diffMinutes = Math.floor(diffMs / (1e3 * 60));
-  if (diffDays > 0) {
-    return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
-  } else if (diffHours > 0) {
-    return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
-  } else if (diffMinutes > 0) {
-    return `${diffMinutes} minute${diffMinutes > 1 ? "s" : ""} ago`;
-  } else {
-    return "Just now";
-  }
-}
-function sanitizeFilename(filename) {
-  return filename.replace(/[<>:"/\\|?*]/g, "-").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
-}
+var import_obsidian3 = require("obsidian");
 
 // src/llm-extractor.js
-var import_obsidian3 = require("obsidian");
+var import_obsidian2 = require("obsidian");
 
 // src/prompts.js
 var PROMPTS = {
@@ -650,6 +587,14 @@ function getPrompt(type, params = {}) {
 }
 
 // src/llm-extractor.js
+var RequestLimitExceededError = class extends Error {
+  constructor(provider, model, message) {
+    super(message);
+    this.name = "RequestLimitExceededError";
+    this.provider = provider;
+    this.model = model;
+  }
+};
 var LLMExtractor = class {
   constructor(settings) {
     this.settings = settings;
@@ -759,6 +704,21 @@ var LLMExtractor = class {
       })
     });
     if (!response.ok) {
+      if (response.status === 429) {
+        throw new RequestLimitExceededError(
+          "openai",
+          this.settings.model,
+          "OpenAI rate limit exceeded. Please try again later or choose a different model."
+        );
+      }
+      const errorData = await response.json().catch(() => ({}));
+      if (errorData.error && (errorData.error.code === "insufficient_quota" || errorData.error.message?.toLowerCase().includes("quota") || errorData.error.message?.toLowerCase().includes("rate limit") || errorData.error.message?.toLowerCase().includes("billing"))) {
+        throw new RequestLimitExceededError(
+          "openai",
+          this.settings.model,
+          "OpenAI quota exceeded. Please check your billing or choose a different model."
+        );
+      }
       throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
     }
     const data = await response.json();
@@ -790,6 +750,21 @@ ${prompt}` : prompt;
       })
     });
     if (!response.ok) {
+      if (response.status === 429) {
+        throw new RequestLimitExceededError(
+          "gemini",
+          this.settings.model,
+          "Gemini rate limit exceeded. Please try again later or choose a different model."
+        );
+      }
+      const errorData = await response.json().catch(() => ({}));
+      if (errorData.error && (errorData.error.code === "RESOURCE_EXHAUSTED" || errorData.error.message?.toLowerCase().includes("quota") || errorData.error.message?.toLowerCase().includes("rate limit") || errorData.error.message?.toLowerCase().includes("billing"))) {
+        throw new RequestLimitExceededError(
+          "gemini",
+          this.settings.model,
+          "Gemini quota exceeded. Please check your billing or choose a different model."
+        );
+      }
       throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
     }
     const data = await response.json();
@@ -822,6 +797,21 @@ ${prompt}` : prompt;
       })
     });
     if (!response.ok) {
+      if (response.status === 429) {
+        throw new RequestLimitExceededError(
+          "anthropic",
+          this.settings.model,
+          "Anthropic rate limit exceeded. Please try again later or choose a different model."
+        );
+      }
+      const errorData = await response.json().catch(() => ({}));
+      if (errorData.error && (errorData.error.type === "rate_limit_error" || errorData.error.message?.toLowerCase().includes("quota") || errorData.error.message?.toLowerCase().includes("rate limit") || errorData.error.message?.toLowerCase().includes("billing"))) {
+        throw new RequestLimitExceededError(
+          "anthropic",
+          this.settings.model,
+          "Anthropic quota exceeded. Please check your billing or choose a different model."
+        );
+      }
       throw new Error(`Anthropic API error: ${response.status} ${response.statusText}`);
     }
     const data = await response.json();
@@ -853,6 +843,14 @@ ${prompt}` : prompt;
       })
     });
     if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      if (errorData.error && (errorData.error.includes("model not found") || errorData.error.includes("server error"))) {
+        throw new RequestLimitExceededError(
+          "ollama",
+          this.settings.model,
+          "Ollama model not available. Please check if the model is installed or choose a different model."
+        );
+      }
       throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
     }
     const data = await response.json();
@@ -868,7 +866,8 @@ ${prompt}` : prompt;
     const chunks = this.splitContent(notesContent, maxTokens);
     const allTasks = {
       explicit: [],
-      implied: []
+      implied: [],
+      all: ""
     };
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
@@ -876,8 +875,12 @@ ${prompt}` : prompt;
       try {
         const response = await this.makeLLMCall(user, system);
         const parsedTasks = this.parseTaskResponse(response);
-        allTasks.explicit.push(...parsedTasks.explicit);
-        allTasks.implied.push(...parsedTasks.implied);
+        if (parsedTasks.explicit.length === 0 && parsedTasks.implied.length === 0) {
+          allTasks.all = response;
+        } else {
+          allTasks.explicit.push(...parsedTasks.explicit);
+          allTasks.implied.push(...parsedTasks.implied);
+        }
       } catch (error) {
         console.error(`Error extracting tasks from chunk ${i + 1}:`, error);
       }
@@ -950,9 +953,9 @@ ${prompt}` : prompt;
     let currentSection = "";
     for (const line of lines) {
       const trimmed = line.trim();
-      if (trimmed.startsWith("EXPLICIT TASKS:")) {
+      if (/^(?:\*{0,2}|#{1,5})\s*EXPLICIT TASKS\b/i.test(trimmed)) {
         currentSection = "explicit";
-      } else if (trimmed.startsWith("IMPLIED TASKS:")) {
+      } else if (/^(?:\*{0,2}|#{1,5})\s*IMPLIED TASKS\b/i.test(trimmed)) {
         currentSection = "implied";
       } else if (trimmed.startsWith("-") && currentSection) {
         const taskText = trimmed.substring(1).trim();
@@ -981,13 +984,13 @@ ${prompt}` : prompt;
     let currentSection = "";
     for (const line of lines) {
       const trimmed = line.trim();
-      if (trimmed.startsWith("BLOCKERS:")) {
+      if (/^(?:\*{0,2}|#{1,5})\s*BLOCKERS\b/i.test(trimmed)) {
         currentSection = "blockers";
-      } else if (trimmed.startsWith("BUGS/ISSUES:")) {
+      } else if (/^(?:\*{0,2}|#{1,5})\s*BUGS\s*ISSUES\b/i.test(trimmed)) {
         currentSection = "bugs";
-      } else if (trimmed.startsWith("ACHIEVEMENTS:")) {
+      } else if (/^(?:\*{0,2}|#{1,5})\s*ACHIEVEMENTS\b/i.test(trimmed)) {
         currentSection = "achievements";
-      } else if (trimmed.startsWith("GENERAL INSIGHTS:")) {
+      } else if (/^(?:\*{0,2}|#{1,5})\s*GENERAL\s*INSIGHTS\b/i.test(trimmed)) {
         currentSection = "general";
       } else if (trimmed.startsWith("-") && currentSection) {
         const insight = {
@@ -1011,27 +1014,37 @@ ${prompt}` : prompt;
       progress: 50,
       lastActivity: metadata.lastActivity,
       totalNotes: metadata.totalNotes,
-      recentNotes: metadata.recentNotes
+      recentNotes: metadata.recentNotes,
+      summary: "",
+      all: []
     };
     const lines = response.split("\n");
     for (const line of lines) {
       const trimmed = line.trim();
-      if (trimmed.startsWith("STATUS:")) {
+      if (/^(?:\*{0,2}|#{1,5})\s*STATUS\b/i.test(trimmed)) {
         const statusMatch = trimmed.match(/STATUS:\s*(\w+)/i);
         if (statusMatch) {
           status.status = statusMatch[1].toLowerCase();
         }
-      } else if (trimmed.startsWith("PROGRESS:")) {
+      } else if (/^(?:\*{0,2}|#{1,5})\s*PROGRESS\b/i.test(trimmed)) {
         const progressMatch = trimmed.match(/PROGRESS:\s*(\d+)%/);
         if (progressMatch) {
           status.progress = parseInt(progressMatch[1]);
         }
-      } else if (trimmed.startsWith("LAST_ACTIVITY:")) {
+      } else if (/^(?:\*{0,2}|#{1,5})\s*LAST\s*ACTIVITY\b/i.test(trimmed)) {
         const activityMatch = trimmed.match(/LAST_ACTIVITY:\s*(.+)/);
         if (activityMatch) {
           status.lastActivity = activityMatch[1].trim();
         }
+      } else if (/^(?:\*{0,2}|#{1,5})\s*SUMMARY\b/i.test(trimmed)) {
+        const summaryMatch = trimmed.match(/SUMMARY:\s*(.+)/);
+        if (summaryMatch) {
+          status.summary = summaryMatch[1].trim();
+        }
       }
+    }
+    if (status.status.length === 0) {
+      status.all = lines;
     }
     return status;
   }
@@ -1234,28 +1247,144 @@ Please analyze this content according to the custom prompt and provide detailed 
   }
 };
 
+// src/utils.js
+function sortFilesByDate(files) {
+  return files.sort((a, b) => b.stat.mtime - a.stat.mtime);
+}
+function getProjects(app, projectRoot) {
+  const rootFolder = app.vault.getAbstractFileByPath(projectRoot);
+  if (!rootFolder || !(rootFolder instanceof import_obsidian3.TFolder)) {
+    return [];
+  }
+  return rootFolder.children.filter((child) => child instanceof import_obsidian3.TFolder).sort((a, b) => a.name.localeCompare(b.name));
+}
+function getNotesInFolder(app, folderPath) {
+  const folder = app.vault.getAbstractFileByPath(folderPath);
+  if (!folder || !(folder instanceof import_obsidian3.TFolder)) {
+    return [];
+  }
+  return folder.children.filter((child) => child instanceof import_obsidian3.TFile && child.extension === "md").sort((a, b) => b.stat.mtime - a.stat.mtime);
+}
+function getNotesRecursively(app, folderPath) {
+  const folder = app.vault.getAbstractFileByPath(folderPath);
+  if (!folder || !(folder instanceof import_obsidian3.TFolder)) {
+    return [];
+  }
+  const notes = [];
+  function traverseFolder(currentFolder) {
+    for (const child of currentFolder.children) {
+      if (child instanceof import_obsidian3.TFile && child.extension === "md") {
+        notes.push(child);
+      } else if (child instanceof import_obsidian3.TFolder) {
+        traverseFolder(child);
+      }
+    }
+  }
+  traverseFolder(folder);
+  return notes.sort((a, b) => b.stat.mtime - a.stat.mtime);
+}
+function formatDate(date) {
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+function getTimeAgo(date) {
+  const now = /* @__PURE__ */ new Date();
+  const diffMs = now - date;
+  const diffDays = Math.floor(diffMs / (1e3 * 60 * 60 * 24));
+  const diffHours = Math.floor(diffMs / (1e3 * 60 * 60));
+  const diffMinutes = Math.floor(diffMs / (1e3 * 60));
+  if (diffDays > 0) {
+    return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+  } else if (diffHours > 0) {
+    return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+  } else if (diffMinutes > 0) {
+    return `${diffMinutes} minute${diffMinutes > 1 ? "s" : ""} ago`;
+  } else {
+    return "Just now";
+  }
+}
+function sanitizeFilename(filename) {
+  return filename.replace(/[<>:"/\\|?*]/g, "-").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+}
+function handleRequestLimitError(error, commandName) {
+  if (error instanceof RequestLimitExceededError) {
+    console.error(`Request limit exceeded in ${commandName}:`, error);
+    const message = `\u26A0\uFE0F ${error.message}
+
+Please choose a different model in the Pensieve settings.`;
+    new import_obsidian3.Notice(message, 1e4);
+    console.error("RequestLimitExceededError details:", {
+      provider: error.provider,
+      model: error.model,
+      command: commandName,
+      message: error.message
+    });
+    return true;
+  }
+  return false;
+}
+async function executeCommandWithErrorHandling(commandFunction, commandName, ...args) {
+  try {
+    return await commandFunction(...args);
+  } catch (error) {
+    if (handleRequestLimitError(error, commandName)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 // src/memory-manager.js
 async function updateProjectMemories(app, settings, excludeProjects = []) {
-  try {
-    const projects = getProjects(app, settings.projectRoot);
-    const journalNotes = getNotesInFolder(app, settings.journalFolder);
-    const activeProjects = projects.filter(
-      (project) => !excludeProjects.includes(project.name)
-    );
-    for (const project of activeProjects) {
-      await updateSingleProjectMemory(app, settings, project, journalNotes);
-    }
-    new import_obsidian4.Notice(`Updated memories for ${activeProjects.length} projects`);
-  } catch (error) {
-    console.error("Error updating project memories:", error);
-    new import_obsidian4.Notice("Error updating project memories");
+  return await executeCommandWithErrorHandling(
+    async () => {
+      const projects = getProjects(app, settings.projectRoot);
+      const journalNotes = getNotesInFolder(app, settings.journalFolder);
+      const activeProjects = projects.filter(
+        (project) => !excludeProjects.includes(project.name)
+      );
+      for (const project of activeProjects) {
+        await updateSingleProjectMemory(app, settings, project, journalNotes);
+      }
+      new import_obsidian4.Notice(`Updated memories for ${activeProjects.length} projects`);
+    },
+    "Update Project Memories"
+  );
+}
+async function checkIfProjectMemoryExist(app, settings, projectName) {
+  const memoryPath = `${settings.memoryFolder}/projects/${projectName}`;
+  const memoryFile = app.vault.getAbstractFileByPath(memoryPath);
+  if (!memoryFile) {
+    return false;
   }
+  const memoryFiles = [`${memoryPath}/status.md`, `${memoryPath}/tasks.md`, `${memoryPath}/insights.md`];
+  for (const file of memoryFiles) {
+    const fileContent = await app.vault.read(file);
+    if (fileContent.length > 0) {
+      return true;
+    }
+  }
+  return false;
+}
+function getProjectNotesFromItsFolder(app, settings, project) {
+  const projectNotes = getNotesInFolder(app, `${settings.projectRoot}/${project.name}`);
+  return projectNotes;
 }
 async function updateSingleProjectMemory(app, settings, project, journalNotes) {
   const projectName = project.name;
-  const projectNotes = findProjectNotesInJournal(journalNotes, projectName);
+  let projectNotes = findProjectNotesInJournal(journalNotes, projectName);
   if (projectNotes.length === 0) {
-    return;
+    if (await checkIfProjectMemoryExist(app, settings, projectName)) {
+      new import_obsidian4.Notice(`No new notes for ${projectName}`);
+      return;
+    } else {
+      projectNotes = getProjectNotesFromItsFolder(app, settings, project);
+    }
   }
   const sortedNotes = sortFilesByDate(projectNotes);
   const notesContent = await combineNotesContent(app, sortedNotes);
@@ -1330,6 +1459,11 @@ function generateMemorySection(title, data, today) {
 
 `;
   if (title === "Tasks") {
+    if (data.all) {
+      section += "\n";
+      section += data.all;
+      return section;
+    }
     if (data.explicit && data.explicit.length > 0) {
       section += "### Explicit Tasks\n\n";
       data.explicit.forEach((task) => {
@@ -1406,19 +1540,19 @@ async function ensureFolderExists(app, folderPath) {
 // src/note-refiner.js
 var import_obsidian5 = require("obsidian");
 async function refineProjectNotes(app, settings, excludeProjects = []) {
-  try {
-    const projects = getProjects(app, settings.projectRoot);
-    const activeProjects = projects.filter(
-      (project) => !excludeProjects.includes(project.name)
-    );
-    for (const project of activeProjects) {
-      await refineSingleProjectNotes(app, settings, project);
-    }
-    new import_obsidian5.Notice(`Refined notes for ${activeProjects.length} projects`);
-  } catch (error) {
-    console.error("Error refining project notes:", error);
-    new import_obsidian5.Notice("Error refining project notes");
-  }
+  return await executeCommandWithErrorHandling(
+    async () => {
+      const projects = getProjects(app, settings.projectRoot);
+      const activeProjects = projects.filter(
+        (project) => !excludeProjects.includes(project.name)
+      );
+      for (const project of activeProjects) {
+        await refineSingleProjectNotes(app, settings, project);
+      }
+      new import_obsidian5.Notice(`Refined notes for ${activeProjects.length} projects`);
+    },
+    "Refine Project Notes"
+  );
 }
 async function refineSingleProjectNotes(app, settings, project) {
   const projectName = project.name;
@@ -1639,28 +1773,28 @@ async function ensureFolderExists2(app, folderPath) {
 // src/autologs-manager.js
 var import_obsidian6 = require("obsidian");
 async function generateAutolog(app, settings, cycleType = "daily", targetDate = /* @__PURE__ */ new Date()) {
-  try {
-    console.log(`Generating ${cycleType} autolog for ${formatDate(targetDate)}`);
-    const journalNotes = getNotesInFolder(app, settings.journalFolder);
-    if (journalNotes.length === 0) {
-      new import_obsidian6.Notice("No journal notes found for autolog generation");
-      return;
-    }
-    const relevantNotes = filterNotesByCycle(journalNotes, cycleType, targetDate);
-    if (relevantNotes.length === 0) {
-      new import_obsidian6.Notice(`No notes found for ${cycleType} cycle ending ${formatDate(targetDate)}`);
-      return;
-    }
-    const sortedNotes = sortFilesByDate(relevantNotes);
-    const notesContent = await combineNotesContent3(app, sortedNotes);
-    const extractor = new LLMExtractor(settings);
-    const autologData = await extractor.generateAutolog(notesContent, cycleType, targetDate);
-    await createAutologFile(app, settings, cycleType, targetDate, autologData, relevantNotes);
-    new import_obsidian6.Notice(`Generated ${cycleType} autolog with ${relevantNotes.length} notes`);
-  } catch (error) {
-    console.error("Error generating autolog:", error);
-    new import_obsidian6.Notice("Error generating autolog");
-  }
+  return await executeCommandWithErrorHandling(
+    async () => {
+      console.log(`Generating ${cycleType} autolog for ${formatDate(targetDate)}`);
+      const journalNotes = getNotesInFolder(app, settings.journalFolder);
+      if (journalNotes.length === 0) {
+        new import_obsidian6.Notice("No journal notes found for autolog generation");
+        return;
+      }
+      const relevantNotes = filterNotesByCycle(journalNotes, cycleType, targetDate);
+      if (relevantNotes.length === 0) {
+        new import_obsidian6.Notice(`No notes found for ${cycleType} cycle ending ${formatDate(targetDate)}`);
+        return;
+      }
+      const sortedNotes = sortFilesByDate(relevantNotes);
+      const notesContent = await combineNotesContent3(app, sortedNotes);
+      const extractor = new LLMExtractor(settings);
+      const autologData = await extractor.generateAutolog(notesContent, cycleType, targetDate);
+      await createAutologFile(app, settings, cycleType, targetDate, autologData, relevantNotes);
+      new import_obsidian6.Notice(`Generated ${cycleType} autolog with ${relevantNotes.length} notes`);
+    },
+    `Generate ${cycleType.charAt(0).toUpperCase() + cycleType.slice(1)} Autolog`
+  );
 }
 function filterNotesByCycle(notes, cycleType, targetDate) {
   const cycleStart = getCycleStartDate(cycleType, targetDate);
@@ -2515,6 +2649,14 @@ Date: ${(/* @__PURE__ */ new Date()).toISOString()}
       el.style.webkitUserSelect = "text";
       el.style.mozUserSelect = "text";
       el.style.msUserSelect = "text";
+      el.style.overflow = "visible";
+      el.style.wordWrap = "break-word";
+      el.style.overflowWrap = "break-word";
+      el.style.boxSizing = "border-box";
+      if (el.tagName === "LI" || el.classList.contains("task-list-item")) {
+        el.style.paddingLeft = "0";
+        el.style.marginLeft = "0";
+      }
     });
   }
 };
@@ -2571,6 +2713,10 @@ ${content}
       this.analysisResult = await extractor.analyzeAutologs(combinedContent, this.customPrompt);
       this.displayResults();
     } catch (error) {
+      if (handleRequestLimitError(error, "Autolog Analysis")) {
+        this.close();
+        return;
+      }
       console.error("Error performing analysis:", error);
       new import_obsidian7.Notice("Error performing analysis");
     }

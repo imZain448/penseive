@@ -1,8 +1,8 @@
 import { ItemView, WorkspaceLeaf, Notice, TFolder, TFile, Modal, MarkdownRenderer } from 'obsidian';
 import { generateAutolog, getRecentAutologs } from './autologs-manager.js';
 import { updateProjectMemories } from './memory-manager.js';
-import { LLMExtractor } from './llm-extractor.js';
-import { getProjects } from './utils.js';
+import { LLMExtractor, RequestLimitExceededError } from './llm-extractor.js';
+import { getProjects, handleRequestLimitError } from './utils.js';
 
 /**
  * View type identifier for the dashboard
@@ -898,6 +898,18 @@ Date: ${new Date().toISOString()}
             el.style.webkitUserSelect = 'text';
             el.style.mozUserSelect = 'text';
             el.style.msUserSelect = 'text';
+
+            // Fix text cropping issues
+            el.style.overflow = 'visible';
+            el.style.wordWrap = 'break-word';
+            el.style.overflowWrap = 'break-word';
+            el.style.boxSizing = 'border-box';
+
+            // Ensure proper padding for list items
+            if (el.tagName === 'LI' || el.classList.contains('task-list-item')) {
+                el.style.paddingLeft = '0';
+                el.style.marginLeft = '0';
+            }
         });
     }
 }
@@ -971,6 +983,14 @@ class AutologAnalyzeModal extends Modal {
 
             this.displayResults();
         } catch (error) {
+            // Check if this is a request limit error
+            if (handleRequestLimitError(error, 'Autolog Analysis')) {
+                // Halt execution - close the modal
+                this.close();
+                return;
+            }
+
+            // For other errors, show normal error message
             console.error('Error performing analysis:', error);
             new Notice('Error performing analysis');
         }
